@@ -7,6 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pauseSession: () => ipcRenderer.send('pause-session'),
   resumeSession: () => ipcRenderer.send('resume-session'),
   endSession: () => ipcRenderer.send('end-session'),
-  enableMouse: (bounds) => ipcRenderer.send('enable-mouse', bounds),
-  disableMouse: () => ipcRenderer.send('disable-mouse')
+  mouseEnterPanel: () => ipcRenderer.send('mouse-enter-panel'),
+  mouseLeavePanel: () => ipcRenderer.send('mouse-leave-panel')
 });

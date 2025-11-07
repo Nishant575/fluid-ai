@@ -17,13 +17,13 @@
       overflow: hidden;
       width: 100vw;
       height: 100vh;
-      pointer-events: none;
+      /* REMOVED: pointer-events: none */
     }
     
     /* Main Control Panel - Clean Transparent */
     #control-panel {
       position: fixed;
-      bottom: 24px;
+      bottom: 20px;          /* Back to bottom */
       left: 50%;
       transform: translateX(-50%);
       background: rgba(45, 45, 50, 0.95);
@@ -37,7 +37,7 @@
       cursor: move;
       user-select: none;
       min-width: 800px;
-      max-width: 1000px;
+      max-width: 950px;
       transition: all 0.2s ease;
     }
     
@@ -225,11 +225,15 @@
     /* Feedback Cards */
     #feedback-container {
       position: fixed;
+      bottom: 300px;  /* 200px from bottom = above the control panel */
+      left: 50%;
+      transform: translateX(-50%);
       pointer-events: none;
       z-index: 9999;
       display: flex;
       flex-direction: column;
       gap: 10px;
+      align-items: center;
     }
     
     .feedback-card {
@@ -675,238 +679,236 @@
   </div>
   
   <script>
-    const feedbackContainer = document.getElementById('feedback-container');
-    const controlPanel = document.getElementById('control-panel');
-    const statusText = document.getElementById('status-text');
-    const startBtn = document.getElementById('start-btn');
-    const pauseBtn = document.getElementById('pause-btn');
-    const resumeBtn = document.getElementById('resume-btn');
-    const endBtn = document.getElementById('end-btn');
-    const summaryModal = document.getElementById('summary-modal');
-    const aiChatToggle = document.getElementById('ai-chat-toggle');
-    const chatSection = document.getElementById('chat-section');
-    const aiResponse = document.getElementById('ai-response');
-    
-    let sessionState = 'inactive';
-    let feedbackCount = 0;
-    
-    // Draggable
-    let isDragging = false;
-    let currentX = 0, currentY = 0, initialX = 0, initialY = 0;
-    
-    controlPanel.addEventListener('mousedown', dragStart);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', dragEnd);
-    
-    function dragStart(e) {
-      if (e.target.closest('.control-btn') || 
-          e.target.closest('.header-btn') || 
-          e.target.closest('.chat-input')) {
-        return;
-      }
-      
-      const rect = controlPanel.getBoundingClientRect();
-      initialX = e.clientX - (rect.left + window.scrollX);
-      initialY = e.clientY - (rect.top + window.scrollY);
-      isDragging = true;
+  const feedbackContainer = document.getElementById('feedback-container');
+  const controlPanel = document.getElementById('control-panel');
+  const statusText = document.getElementById('status-text');
+  const startBtn = document.getElementById('start-btn');
+  const pauseBtn = document.getElementById('pause-btn');
+  const resumeBtn = document.getElementById('resume-btn');
+  const endBtn = document.getElementById('end-btn');
+  const summaryModal = document.getElementById('summary-modal');
+  const aiChatToggle = document.getElementById('ai-chat-toggle');
+  const chatSection = document.getElementById('chat-section');
+  
+  let sessionState = 'inactive';
+  let feedbackCount = 0;
+  
+  // Simplified dragging - just for visual feedback
+  let isDragging = false;
+  
+  controlPanel.addEventListener('mousedown', (e) => {
+    if (e.target.closest('.control-btn') || 
+        e.target.closest('.header-btn') || 
+        e.target.closest('.chat-input') ||
+        e.target.closest('.send-btn')) {
+      return;
     }
     
-    function drag(e) {
-      if (isDragging) {
-        e.preventDefault();
-        currentX = e.clientX - initialX;
-        currentY = e.clientY - initialY;
-        
-        controlPanel.style.left = currentX + 'px';
-        controlPanel.style.top = currentY + 'px';
-        controlPanel.style.bottom = 'auto';
-        controlPanel.style.transform = 'none';
-        
-        updateFeedbackPosition();
-      }
-    }
-    
-    function dragEnd() {
+    isDragging = true;
+    controlPanel.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
       isDragging = false;
+      controlPanel.style.cursor = 'move';
     }
-    
-    function updateFeedbackPosition() {
-      const panelRect = controlPanel.getBoundingClientRect();
-      feedbackContainer.style.left = panelRect.left + 'px';
-      feedbackContainer.style.bottom = (window.innerHeight - panelRect.top + 12) + 'px';
+  });
+  
+  // AI Chat Toggle
+  aiChatToggle.addEventListener('click', () => {
+    console.log('AI chat toggle clicked');
+    chatSection.classList.toggle('show');
+    if (chatSection.classList.contains('show')) {
+      document.getElementById('chat-input').focus();
     }
+  });
+  
+  function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (message) {
+      console.log('User message:', message);
+      // Future: Send to Gemini API
+      input.value = '';
+    }
+  }
+  
+  function minimizePanel() {
+    console.log('Minimizing panel');
+    controlPanel.style.display = 'none';
+  }
+  
+  // Button handlers
+  startBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    console.log('✅ Start button clicked');
+    window.electronAPI.startSession();
+    sessionState = 'active';
+    updateControlPanel();
+  });
+  
+  pauseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    console.log('⏸️ Pause button clicked');
+    window.electronAPI.pauseSession();
+    sessionState = 'paused';
+    updateControlPanel();
+  });
+  
+  resumeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    console.log('▶️ Resume button clicked');
+    window.electronAPI.resumeSession();
+    sessionState = 'active';
+    updateControlPanel();
+  });
+  
+  endBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    console.log('⏹️ End button clicked');
+    window.electronAPI.endSession();
+    sessionState = 'inactive';
+    updateControlPanel();
+  });
+  
+  function updateControlPanel() {
+    console.log('📊 Updating control panel state:', sessionState);
+    controlPanel.classList.remove('inactive', 'recording', 'paused');
     
-    updateFeedbackPosition();
-    window.addEventListener('resize', updateFeedbackPosition);
+    if (sessionState === 'active') {
+      controlPanel.classList.add('recording');
+      statusText.textContent = 'Analyzing your speech in real-time';
+      startBtn.style.display = 'none';
+      pauseBtn.disabled = false;
+      pauseBtn.style.display = 'block';
+      resumeBtn.style.display = 'none';
+      endBtn.disabled = false;
+    } else if (sessionState === 'paused') {
+      controlPanel.classList.add('paused');
+      statusText.textContent = 'Session paused';
+      pauseBtn.style.display = 'none';
+      resumeBtn.style.display = 'block';
+      resumeBtn.disabled = false;
+      endBtn.disabled = false;
+    } else {
+      controlPanel.classList.add('inactive');
+      statusText.textContent = 'Ready to start your interview session';
+      startBtn.style.display = 'block';
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      pauseBtn.style.display = 'block';
+      resumeBtn.style.display = 'none';
+      endBtn.disabled = true;
+    }
+  }
+  
+  // Listen for backend messages
+  window.electronAPI.onBackendMessage((message) => {
+    console.log('📨 Backend message received:', message.type);
     
-    // AI Chat Toggle
-    aiChatToggle.addEventListener('click', () => {
-      chatSection.classList.toggle('show');
-      if (chatSection.classList.contains('show')) {
-        document.getElementById('chat-input').focus();
+    if (message.type === 'FEEDBACK') {
+      showFeedback(message.data);
+    } else if (message.type === 'SESSION_SUMMARY') {
+      showSummary(message.summary);
+    } else if (message.type === 'SESSION_STARTED') {
+      console.log('✅ Session started:', message.session_id);
+    } else if (message.type === 'SESSION_PAUSED') {
+      console.log('⏸️ Session paused');
+    } else if (message.type === 'SESSION_RESUMED') {
+      console.log('▶️ Session resumed');
+    }
+  });
+  
+  function showFeedback(feedback) {
+    feedbackCount++;
+    console.log('💬 Showing feedback:', feedback.message);
+    
+    const card = document.createElement('div');
+    card.className = `feedback-card ${feedback.type}`;
+    
+    const message = document.createElement('div');
+    message.className = 'feedback-message';
+    message.textContent = feedback.message;
+    
+    card.appendChild(message);
+    
+    feedbackContainer.appendChild(card);
+    
+    setTimeout(() => {
+      card.classList.add('removing');
+      setTimeout(() => card.remove(), 250);
+    }, 10000);
+    
+    const cards = feedbackContainer.querySelectorAll('.feedback-card:not(.removing)');
+    if (cards.length > 3) {
+      cards[0].classList.add('removing');
+      setTimeout(() => cards[0].remove(), 250);
+    }
+  }
+  
+  function showSummary(summary) {
+    console.log('📊 Showing summary');
+    const minutes = Math.floor(summary.duration_seconds / 60);
+    const seconds = summary.duration_seconds % 60;
+    const durationText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    document.getElementById('summary-date').textContent = new Date().toLocaleString();
+    document.getElementById('confidence-score').textContent = summary.confidence_score;
+    document.getElementById('stat-duration').textContent = durationText;
+    document.getElementById('stat-words').textContent = summary.total_words;
+    document.getElementById('stat-wpm').textContent = Math.round(summary.avg_wpm);
+    document.getElementById('stat-fillers').textContent = summary.filler_count;
+    
+    if (summary.filler_count > 0) {
+      const fillerSection = document.getElementById('filler-section');
+      const fillerList = document.getElementById('filler-list');
+      fillerList.innerHTML = '';
+      
+      for (const [filler, count] of Object.entries(summary.filler_details)) {
+        const tag = document.createElement('div');
+        tag.className = 'filler-tag';
+        tag.textContent = `${filler}: ${count}×`;
+        fillerList.appendChild(tag);
       }
+      
+      fillerSection.style.display = 'block';
+    }
+    
+    const strengthsList = document.getElementById('strengths-list');
+    strengthsList.innerHTML = '';
+    summary.strengths.forEach(strength => {
+      const li = document.createElement('li');
+      li.textContent = strength;
+      strengthsList.appendChild(li);
     });
     
-    function sendMessage() {
-      const input = document.getElementById('chat-input');
-      const message = input.value.trim();
-      if (message) {
-        console.log('User message:', message);
-        // Future: Send to Gemini API
-        input.value = '';
-      }
-    }
-    
-    function minimizePanel() {
-      controlPanel.style.display = 'none';
-    }
-    
-    // Button handlers
-    startBtn.addEventListener('click', () => {
-      window.electronAPI.startSession();
-      sessionState = 'active';
-      updateControlPanel();
+    const improvementsList = document.getElementById('improvements-list');
+    improvementsList.innerHTML = '';
+    summary.improvements.forEach(improvement => {
+      const li = document.createElement('li');
+      li.textContent = improvement;
+      improvementsList.appendChild(li);
     });
     
-    pauseBtn.addEventListener('click', () => {
-      window.electronAPI.pauseSession();
-      sessionState = 'paused';
-      updateControlPanel();
-    });
-    
-    resumeBtn.addEventListener('click', () => {
-      window.electronAPI.resumeSession();
-      sessionState = 'active';
-      updateControlPanel();
-    });
-    
-    endBtn.addEventListener('click', () => {
-      window.electronAPI.endSession();
-      sessionState = 'inactive';
-      updateControlPanel();
-    });
-    
-    function updateControlPanel() {
-      controlPanel.classList.remove('inactive', 'recording', 'paused');
-      
-      if (sessionState === 'active') {
-        controlPanel.classList.add('recording');
-        statusText.textContent = 'Analyzing your speech in real-time';
-        startBtn.style.display = 'none';
-        pauseBtn.disabled = false;
-        pauseBtn.style.display = 'block';
-        resumeBtn.style.display = 'none';
-        endBtn.disabled = false;
-      } else if (sessionState === 'paused') {
-        controlPanel.classList.add('paused');
-        statusText.textContent = 'Session paused';
-        pauseBtn.style.display = 'none';
-        resumeBtn.style.display = 'block';
-        resumeBtn.disabled = false;
-        endBtn.disabled = false;
-      } else {
-        controlPanel.classList.add('inactive');
-        statusText.textContent = 'Ready to start your interview session';
-        startBtn.style.display = 'block';
-        startBtn.disabled = false;
-        pauseBtn.disabled = true;
-        resumeBtn.style.display = 'none';
-        endBtn.disabled = true;
-      }
-    }
-    
-    window.electronAPI.onBackendMessage((message) => {
-      if (message.type === 'FEEDBACK') {
-        showFeedback(message.data);
-      } else if (message.type === 'SESSION_SUMMARY') {
-        showSummary(message.summary);
-      }
-    });
-    
-    function showFeedback(feedback) {
-      feedbackCount++;
-      
-      const card = document.createElement('div');
-      card.className = `feedback-card ${feedback.type}`;
-      
-      const message = document.createElement('div');
-      message.className = 'feedback-message';
-      message.textContent = feedback.message;
-      
-      card.appendChild(message);
-      
-      feedbackContainer.appendChild(card);
-      
-      setTimeout(() => {
-        card.classList.add('removing');
-        setTimeout(() => card.remove(), 250);
-      }, 5000);
-      
-      const cards = feedbackContainer.querySelectorAll('.feedback-card:not(.removing)');
-      if (cards.length > 3) {
-        cards[0].classList.add('removing');
-        setTimeout(() => cards[0].remove(), 250);
-      }
-    }
-    
-    function showSummary(summary) {
-      const minutes = Math.floor(summary.duration_seconds / 60);
-      const seconds = summary.duration_seconds % 60;
-      const durationText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      
-      document.getElementById('summary-date').textContent = new Date().toLocaleString();
-      document.getElementById('confidence-score').textContent = summary.confidence_score;
-      document.getElementById('stat-duration').textContent = durationText;
-      document.getElementById('stat-words').textContent = summary.total_words;
-      document.getElementById('stat-wpm').textContent = Math.round(summary.avg_wpm);
-      document.getElementById('stat-fillers').textContent = summary.filler_count;
-      
-      if (summary.filler_count > 0) {
-        const fillerSection = document.getElementById('filler-section');
-        const fillerList = document.getElementById('filler-list');
-        fillerList.innerHTML = '';
-        
-        for (const [filler, count] of Object.entries(summary.filler_details)) {
-          const tag = document.createElement('div');
-          tag.className = 'filler-tag';
-          tag.textContent = `${filler}: ${count}×`;
-          fillerList.appendChild(tag);
-        }
-        
-        fillerSection.style.display = 'block';
-      }
-      
-      const strengthsList = document.getElementById('strengths-list');
-      strengthsList.innerHTML = '';
-      summary.strengths.forEach(strength => {
-        const li = document.createElement('li');
-        li.textContent = strength;
-        strengthsList.appendChild(li);
-      });
-      
-      const improvementsList = document.getElementById('improvements-list');
-      improvementsList.innerHTML = '';
-      summary.improvements.forEach(improvement => {
-        const li = document.createElement('li');
-        li.textContent = improvement;
-        improvementsList.appendChild(li);
-      });
-      
-      summaryModal.classList.add('show');
-    }
-    
-    function closeSummary() {
-      summaryModal.classList.remove('show');
-    }
-    
-    function startNewSession() {
-      closeSummary();
-      sessionState = 'inactive';
-      updateControlPanel();
-      feedbackContainer.innerHTML = '';
-    }
-    
-    console.log('✅ EchoMind - Clean Icon-Free Design Loaded');
-  </script>
+    summaryModal.classList.add('show');
+  }
+  
+  function closeSummary() {
+    console.log('Closing summary');
+    summaryModal.classList.remove('show');
+  }
+  
+  function startNewSession() {
+    console.log('Starting new session');
+    closeSummary();
+    sessionState = 'inactive';
+    updateControlPanel();
+    feedbackContainer.innerHTML = '';
+  }
+  
+  console.log('✅ EchoMind overlay loaded and ready');
+</script>
 </body>
 </html>

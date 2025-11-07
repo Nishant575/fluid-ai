@@ -12,9 +12,10 @@ function createOverlay() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width, height } = primaryDisplay.workAreaSize;
 
+  // Create a bottom-positioned panel instead of fullscreen
   overlayWindow = new BrowserWindow({
-    width: width,
-    height: height,
+    width: 1000,           // Wide panel
+    height: 1000,           // Tall enough for content
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -26,16 +27,14 @@ function createOverlay() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    x: 0,
-    y: 0
+    // Position at bottom center
+    x: Math.floor((width - 1000) / 2),
+    y: height - 530  // 280px from bottom (leaves space)
   });
 
   overlayWindow.loadFile('overlay.html');
   
-  // Initially click-through everywhere
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-  
-  overlayWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+  overlayWindow.setAlwaysOnTop(true, 'floating', 1);
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 }
 
@@ -127,9 +126,23 @@ ipcMain.on('end-session', () => {
   }
 });
 
-// Dynamic mouse event handling
-ipcMain.on('set-ignore-mouse-events', (event, ignore, options) => {
-  overlayWindow.setIgnoreMouseEvents(ignore, options);
+// Handle window dragging
+ipcMain.on('start-drag', (event, { mouseX, mouseY }) => {
+  const bounds = overlayWindow.getBounds();
+  const offsetX = mouseX;
+  const offsetY = mouseY;
+  
+  overlayWindow.on('will-move', (event, newBounds) => {
+    // Prevent moving outside screen
+    const display = screen.getPrimaryDisplay();
+    const maxX = display.bounds.width - bounds.width;
+    const maxY = display.bounds.height - bounds.height;
+    
+    if (newBounds.x < 0) newBounds.x = 0;
+    if (newBounds.y < 0) newBounds.y = 0;
+    if (newBounds.x > maxX) newBounds.x = maxX;
+    if (newBounds.y > maxY) newBounds.y = maxY;
+  });
 });
 
 app.whenReady().then(() => {
@@ -145,3 +158,6 @@ app.on('window-all-closed', () => {
   if (ws) ws.close();
   app.quit();
 });
+
+
+
