@@ -12,6 +12,7 @@ import re
 import uuid
 from database import SessionDatabase
 from collections import Counter
+from gemini_service import GeminiCoach  # NEW
 
 load_dotenv()
 
@@ -25,8 +26,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize database
+# Initialize database and Gemini
 db = SessionDatabase()
+gemini_coach = GeminiCoach()  # NEW
 
 class SessionCoach:
     def __init__(self, session_id):
@@ -39,7 +41,7 @@ class SessionCoach:
         self.window_start_time = time.time()
         self.session_start_time = time.time()
         
-        self.all_fillers_found = []  # Track all fillers for summary
+        self.all_fillers_found = []
         self.all_words = []
         
         # Detection lists
@@ -130,7 +132,7 @@ class SessionCoach:
         cleaned_text = self._clean_text(full_window_text)
         
         filler_count, found_fillers = self._count_fillers(full_window_text)
-        self.all_fillers_found.extend(found_fillers)  # Track for summary
+        self.all_fillers_found.extend(found_fillers)
         
         total_words = len(cleaned_text.split())
         window_duration = time.time() - self.window_start_time
@@ -144,7 +146,7 @@ class SessionCoach:
         
         feedback = None
         
-        # Feedback logic (same as before)
+        # Feedback logic
         if filler_count >= 4:
             feedback = {"type": "warning", "message": random.choice(self.filler_feedback)}
         elif weak_count >= 2:
@@ -229,7 +231,7 @@ class SessionCoach:
 
 @app.get("/")
 async def root():
-    return {"status": "EchoMind - Session Management Active", "version": "2.4"}
+    return {"status": "EchoMind - AI-Powered Session Management", "version": "3.0"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -321,9 +323,36 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     elif message['type'] == 'END_SESSION':
                         if coach:
+                            print("\n🧠 Generating AI analysis...")
+                            
+                            # Get basic summary
                             summary = coach.get_session_summary()
+                            
+                            # Get AI analysis from Gemini
+                            transcript = summary['full_transcript']
+                            
+                            if len(transcript.strip()) > 50:  # Only analyze if substantial content
+                                print("🤖 Calling Gemini API...")
+                                ai_result = gemini_coach.analyze_interview_session(
+                                    transcript=transcript,
+                                    session_stats=summary
+                                )
+                                
+                                if ai_result['success']:
+                                    print("✅ AI analysis complete!")
+                                    summary['ai_analysis'] = ai_result['analysis']
+                                else:
+                                    print(f"⚠️ AI analysis failed: {ai_result.get('error', 'Unknown error')}")
+                                    summary['ai_analysis'] = None
+                            else:
+                                print("⚠️ Transcript too short for AI analysis")
+                                summary['ai_analysis'] = None
+                            
+                            # Save to database
                             db.end_session(session_id, summary)
                             print(f"⏹️ Session ended: {session_id}\n")
+                            
+                            # Send summary with AI analysis
                             await websocket.send_json({
                                 "type": "SESSION_SUMMARY",
                                 "summary": summary
@@ -354,7 +383,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 EchoMind - Phase 2A: Session Management")
+    print("🚀 EchoMind - AI-Powered Interview Coach")
+    print("🧠 Features: Real-time feedback + Gemini AI analysis")
     print("📡 WebSocket: ws://localhost:8000/ws")
-    print("🎯 Features: Start/Pause/End + Summary + Database\n")
+    print("🎯 Version: 3.0 with AI\n")
     uvicorn.run(app, host="0.0.0.0", port=8000)
