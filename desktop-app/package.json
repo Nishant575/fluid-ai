@@ -1,0 +1,17 @@
+{
+  "name": "echomind-desktop",
+  "version": "1.0.0",
+  "description": "EchoMind Desktop Overlay",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "mic": "^2.1.2",
+    "node-record-lpcm16": "^1.0.1",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "electron": "^39.1.0"
+  }
+}

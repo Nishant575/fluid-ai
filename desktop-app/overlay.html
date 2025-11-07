@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EchoMind Overlay</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+    }
+    
+    /* Main Control Panel - Clean Transparent */
+    #control-panel {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(45, 45, 50, 0.95);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-radius: 16px;
+      padding: 20px 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      pointer-events: auto;
+      cursor: move;
+      user-select: none;
+      min-width: 800px;
+      max-width: 1000px;
+      transition: all 0.2s ease;
+    }
+    
+    #control-panel:hover {
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+    }
+    
+    /* Header */
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .panel-title {
+      color: #e8e8e8;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+    
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .header-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #b8b8b8;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .header-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: #e8e8e8;
+    }
+    
+    .close-btn {
+      min-width: auto;
+      padding: 8px 12px;
+    }
+    
+    /* Content Section */
+    .panel-content {
+      background: rgba(60, 60, 65, 0.5);
+      border-radius: 12px;
+      padding: 18px 20px;
+      min-height: 80px;
+    }
+    
+    /* Status Display */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6b7280;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+    
+    #control-panel.recording .status-indicator {
+      background: #10b981;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 1);
+      animation: pulse-status 2s infinite;
+    }
+    
+    #control-panel.paused .status-indicator {
+      background: #f59e0b;
+    }
+    
+    @keyframes pulse-status {
+      0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
+    }
+    
+    .status-text {
+      color: #b8b8b8;
+      font-size: 14px;
+      font-weight: 400;
+      flex: 1;
+    }
+    
+    /* AI Response Section */
+    .ai-response-section {
+      display: none;
+      margin-top: 12px;
+    }
+    
+    .ai-response-section.show {
+      display: block;
+    }
+    
+    .response-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .response-item {
+      color: #e8e8e8;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 8px;
+      padding-left: 16px;
+      position: relative;
+    }
+    
+    .response-item::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: #8b8b8d;
+    }
+    
+    /* Control Buttons */
+    .controls-section {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    
+    .control-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e8e8e8;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: -0.1px;
+    }
+    
+    .control-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    
+    .control-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    
+    .control-btn.primary {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .control-btn.primary:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Feedback Cards */
+    #feedback-container {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .feedback-card {
+      background: rgba(45, 45, 50, 0.95);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-radius: 12px;
+      padding: 14px 18px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      animation: slideInFeedback 0.3s ease;
+      min-width: 320px;
+      max-width: 450px;
+    }
+    
+    .feedback-message {
+      color: #e8e8e8;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .feedback-card.success {
+      border-left: 3px solid rgba(16, 185, 129, 0.6);
+    }
+    
+    .feedback-card.warning {
+      border-left: 3px solid rgba(245, 158, 11, 0.6);
+    }
+    
+    .feedback-card.info {
+      border-left: 3px solid rgba(59, 130, 246, 0.6);
+    }
+    
+    @keyframes slideInFeedback {
+      from {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    .feedback-card.removing {
+      animation: slideOutFeedback 0.25s ease forwards;
+    }
+    
+    @keyframes slideOutFeedback {
+      from {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+    }
+    
+    /* AI Chat Input */
+    .chat-input-section {
+      display: none;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .chat-input-section.show {
+      display: block;
+    }
+    
+    .chat-input-wrapper {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .chat-input {
+      flex: 1;
+      background: rgba(60, 60, 65, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #e8e8e8;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s;
+    }
+    
+    .chat-input::placeholder {
+      color: #8b8b8d;
+    }
+    
+    .chat-input:focus {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(60, 60, 65, 1);
+    }
+    
+    .send-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e8e8e8;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .send-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    
+    /* Summary Modal */
+    #summary-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10001;
+      pointer-events: auto;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    #summary-modal.show {
+      display: flex;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .summary-content {
+      background: rgba(45, 45, 50, 0.98);
+      backdrop-filter: blur(30px);
+      border-radius: 20px;
+      padding: 36px;
+      max-width: 650px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      animation: slideUpModal 0.4s ease;
+    }
+    
+    @keyframes slideUpModal {
+      from {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    .summary-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    
+    .summary-header h2 {
+      color: #e8e8e8;
+      font-size: 26px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    
+    .summary-header p {
+      color: #8b8b8d;
+      font-size: 13px;
+    }
+    
+    .summary-score {
+      text-align: center;
+      margin: 24px 0;
+    }
+    
+    .score-circle {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 44px;
+      font-weight: 700;
+      color: #e8e8e8;
+    }
+    
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 24px 0;
+    }
+    
+    .stat-card {
+      background: rgba(60, 60, 65, 0.5);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .stat-card .label {
+      color: #8b8b8d;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    
+    .stat-card .value {
+      color: #e8e8e8;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    
+    .summary-section {
+      margin: 22px 0;
+    }
+    
+    .summary-section h3 {
+      color: #e8e8e8;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    
+    .summary-section ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .summary-section li {
+      background: rgba(60, 60, 65, 0.5);
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      border-radius: 10px;
+      color: #b8b8b8;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .filler-breakdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    
+    .filler-tag {
+      background: rgba(60, 60, 65, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #b8b8b8;
+      padding: 6px 12px;
+      border-radius: 14px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .summary-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 26px;
+    }
+    
+    .summary-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e8e8e8;
+      padding: 13px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .summary-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    
+    .summary-btn.primary {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .summary-btn.primary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Scrollbar */
+    .summary-content::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .summary-content::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    
+    .summary-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Main Control Panel -->
+  <div id="control-panel" class="inactive">
+    <!-- Header -->
+    <div class="panel-header">
+      <div class="header-left">
+        <span class="panel-title">AI Response</span>
+      </div>
+      <div class="header-right">
+        <button class="header-btn" id="ai-chat-toggle">
+          Chat with AI
+        </button>
+        <button class="header-btn close-btn" onclick="minimizePanel()">
+          Close
+        </button>
+      </div>
+    </div>
+    
+    <!-- Content Area -->
+    <div class="panel-content">
+      <!-- Status -->
+      <div class="status-row">
+        <div class="status-indicator"></div>
+        <span class="status-text" id="status-text">Ready to start your interview session</span>
+      </div>
+      
+      <!-- AI Response List -->
+      <div class="ai-response-section" id="ai-response">
+        <ul class="response-list" id="response-list">
+          <li class="response-item">Great clarity in your explanation</li>
+          <li class="response-item">Consider adding specific metrics</li>
+        </ul>
+      </div>
+      
+      <!-- Chat Input -->
+      <div class="chat-input-section" id="chat-section">
+        <div class="chat-input-wrapper">
+          <input 
+            type="text" 
+            class="chat-input" 
+            placeholder="Ask AI for interview tips..."
+            id="chat-input"
+          />
+          <button class="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+      
+      <!-- Controls -->
+      <div class="controls-section">
+        <button id="start-btn" class="control-btn primary">
+          Start
+        </button>
+        <button id="pause-btn" class="control-btn" disabled>
+          Pause
+        </button>
+        <button id="resume-btn" class="control-btn" style="display: none;">
+          Resume
+        </button>
+        <button id="end-btn" class="control-btn" disabled>
+          End
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Feedback Container -->
+  <div id="feedback-container"></div>
+  
+  <!-- Summary Modal -->
+  <div id="summary-modal">
+    <div class="summary-content">
+      <div class="summary-header">
+        <h2>Session Complete</h2>
+        <p id="summary-date"></p>
+      </div>
+      
+      <div class="summary-score">
+        <div class="score-circle">
+          <span id="confidence-score">0</span>
+        </div>
+        <p style="color: #8b8b8d; margin-top: 10px; font-size: 13px;">Confidence Score</p>
+      </div>
+      
+      <div class="summary-stats">
+        <div class="stat-card">
+          <div class="label">Duration</div>
+          <div class="value" id="stat-duration">0:00</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Words</div>
+          <div class="value" id="stat-words">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Pace</div>
+          <div class="value" id="stat-wpm">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Fillers</div>
+          <div class="value" id="stat-fillers">0</div>
+        </div>
+      </div>
+      
+      <div class="summary-section" id="filler-section" style="display: none;">
+        <h3>Filler Word Analysis</h3>
+        <div class="filler-breakdown" id="filler-list"></div>
+      </div>
+      
+      <div class="summary-section">
+        <h3>Strengths</h3>
+        <ul id="strengths-list"></ul>
+      </div>
+      
+      <div class="summary-section">
+        <h3>Areas to Improve</h3>
+        <ul id="improvements-list"></ul>
+      </div>
+      
+      <div class="summary-actions">
+        <button class="summary-btn" onclick="closeSummary()">Close</button>
+        <button class="summary-btn primary" onclick="startNewSession()">Start New</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const feedbackContainer = document.getElementById('feedback-container');
+    const controlPanel = document.getElementById('control-panel');
+    const statusText = document.getElementById('status-text');
+    const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const resumeBtn = document.getElementById('resume-btn');
+    const endBtn = document.getElementById('end-btn');
+    const summaryModal = document.getElementById('summary-modal');
+    const aiChatToggle = document.getElementById('ai-chat-toggle');
+    const chatSection = document.getElementById('chat-section');
+    const aiResponse = document.getElementById('ai-response');
+    
+    let sessionState = 'inactive';
+    let feedbackCount = 0;
+    
+    // Draggable
+    let isDragging = false;
+    let currentX = 0, currentY = 0, initialX = 0, initialY = 0;
+    
+    controlPanel.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+    
+    function dragStart(e) {
+      if (e.target.closest('.control-btn') || 
+          e.target.closest('.header-btn') || 
+          e.target.closest('.chat-input')) {
+        return;
+      }
+      
+      const rect = controlPanel.getBoundingClientRect();
+      initialX = e.clientX - (rect.left + window.scrollX);
+      initialY = e.clientY - (rect.top + window.scrollY);
+      isDragging = true;
+    }
+    
+    function drag(e) {
+      if (isDragging) {
+        e.preventDefault();
+        currentX = e.clientX - initialX;
+        currentY = e.clientY - initialY;
+        
+        controlPanel.style.left = currentX + 'px';
+        controlPanel.style.top = currentY + 'px';
+        controlPanel.style.bottom = 'auto';
+        controlPanel.style.transform = 'none';
+        
+        updateFeedbackPosition();
+      }
+    }
+    
+    function dragEnd() {
+      isDragging = false;
+    }
+    
+    function updateFeedbackPosition() {
+      const panelRect = controlPanel.getBoundingClientRect();
+      feedbackContainer.style.left = panelRect.left + 'px';
+      feedbackContainer.style.bottom = (window.innerHeight - panelRect.top + 12) + 'px';
+    }
+    
+    updateFeedbackPosition();
+    window.addEventListener('resize', updateFeedbackPosition);
+    
+    // AI Chat Toggle
+    aiChatToggle.addEventListener('click', () => {
+      chatSection.classList.toggle('show');
+      if (chatSection.classList.contains('show')) {
+        document.getElementById('chat-input').focus();
+      }
+    });
+    
+    function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const message = input.value.trim();
+      if (message) {
+        console.log('User message:', message);
+        // Future: Send to Gemini API
+        input.value = '';
+      }
+    }
+    
+    function minimizePanel() {
+      controlPanel.style.display = 'none';
+    }
+    
+    // Button handlers
+    startBtn.addEventListener('click', () => {
+      window.electronAPI.startSession();
+      sessionState = 'active';
+      updateControlPanel();
+    });
+    
+    pauseBtn.addEventListener('click', () => {
+      window.electronAPI.pauseSession();
+      sessionState = 'paused';
+      updateControlPanel();
+    });
+    
+    resumeBtn.addEventListener('click', () => {
+      window.electronAPI.resumeSession();
+      sessionState = 'active';
+      updateControlPanel();
+    });
+    
+    endBtn.addEventListener('click', () => {
+      window.electronAPI.endSession();
+      sessionState = 'inactive';
+      updateControlPanel();
+    });
+    
+    function updateControlPanel() {
+      controlPanel.classList.remove('inactive', 'recording', 'paused');
+      
+      if (sessionState === 'active') {
+        controlPanel.classList.add('recording');
+        statusText.textContent = 'Analyzing your speech in real-time';
+        startBtn.style.display = 'none';
+        pauseBtn.disabled = false;
+        pauseBtn.style.display = 'block';
+        resumeBtn.style.display = 'none';
+        endBtn.disabled = false;
+      } else if (sessionState === 'paused') {
+        controlPanel.classList.add('paused');
+        statusText.textContent = 'Session paused';
+        pauseBtn.style.display = 'none';
+        resumeBtn.style.display = 'block';
+        resumeBtn.disabled = false;
+        endBtn.disabled = false;
+      } else {
+        controlPanel.classList.add('inactive');
+        statusText.textContent = 'Ready to start your interview session';
+        startBtn.style.display = 'block';
+        startBtn.disabled = false;
+        pauseBtn.disabled = true;
+        resumeBtn.style.display = 'none';
+        endBtn.disabled = true;
+      }
+    }
+    
+    window.electronAPI.onBackendMessage((message) => {
+      if (message.type === 'FEEDBACK') {
+        showFeedback(message.data);
+      } else if (message.type === 'SESSION_SUMMARY') {
+        showSummary(message.summary);
+      }
+    });
+    
+    function showFeedback(feedback) {
+      feedbackCount++;
+      
+      const card = document.createElement('div');
+      card.className = `feedback-card ${feedback.type}`;
+      
+      const message = document.createElement('div');
+      message.className = 'feedback-message';
+      message.textContent = feedback.message;
+      
+      card.appendChild(message);
+      
+      feedbackContainer.appendChild(card);
+      
+      setTimeout(() => {
+        card.classList.add('removing');
+        setTimeout(() => card.remove(), 250);
+      }, 5000);
+      
+      const cards = feedbackContainer.querySelectorAll('.feedback-card:not(.removing)');
+      if (cards.length > 3) {
+        cards[0].classList.add('removing');
+        setTimeout(() => cards[0].remove(), 250);
+      }
+    }
+    
+    function showSummary(summary) {
+      const minutes = Math.floor(summary.duration_seconds / 60);
+      const seconds = summary.duration_seconds % 60;
+      const durationText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      
+      document.getElementById('summary-date').textContent = new Date().toLocaleString();
+      document.getElementById('confidence-score').textContent = summary.confidence_score;
+      document.getElementById('stat-duration').textContent = durationText;
+      document.getElementById('stat-words').textContent = summary.total_words;
+      document.getElementById('stat-wpm').textContent = Math.round(summary.avg_wpm);
+      document.getElementById('stat-fillers').textContent = summary.filler_count;
+      
+      if (summary.filler_count > 0) {
+        const fillerSection = document.getElementById('filler-section');
+        const fillerList = document.getElementById('filler-list');
+        fillerList.innerHTML = '';
+        
+        for (const [filler, count] of Object.entries(summary.filler_details)) {
+          const tag = document.createElement('div');
+          tag.className = 'filler-tag';
+          tag.textContent = `${filler}: ${count}×`;
+          fillerList.appendChild(tag);
+        }
+        
+        fillerSection.style.display = 'block';
+      }
+      
+      const strengthsList = document.getElementById('strengths-list');
+      strengthsList.innerHTML = '';
+      summary.strengths.forEach(strength => {
+        const li = document.createElement('li');
+        li.textContent = strength;
+        strengthsList.appendChild(li);
+      });
+      
+      const improvementsList = document.getElementById('improvements-list');
+      improvementsList.innerHTML = '';
+      summary.improvements.forEach(improvement => {
+        const li = document.createElement('li');
+        li.textContent = improvement;
+        improvementsList.appendChild(li);
+      });
+      
+      summaryModal.classList.add('show');
+    }
+    
+    function closeSummary() {
+      summaryModal.classList.remove('show');
+    }
+    
+    function startNewSession() {
+      closeSummary();
+      sessionState = 'inactive';
+      updateControlPanel();
+      feedbackContainer.innerHTML = '';
+    }
+    
+    console.log('✅ EchoMind - Clean Icon-Free Design Loaded');
+  </script>
+</body>
+</html>
